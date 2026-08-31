@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LangChain vs LangGraph — Agent Benchmark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EEF1EC;
+    --paper-raised:#F6F7F3;
+    --ink:#182420;
+    --ink-soft:#4B564F;
+    --rule:#CDD3C6;
+    --rule-soft:#DEE2D8;
+    --lc:#C4832B;        /* LangChain accent — warm amber */
+    --lc-soft:#EBD9B8;
+    --lg:#1F5C6B;         /* LangGraph accent — cool teal */
+    --lg-soft:#C7DBDE;
+    --good:#456B49;
+    --bad:#A8452F;
+    --radius:3px;
+    --content-w:880px;
+    --wide-w:1180px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;
+    font-variant-numeric:tabular-nums;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+  }
+  h1,h2,h3{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  a{color:var(--lg);}
+  .wrap{max-width:var(--content-w);margin:0 auto;padding:0 28px;}
+  .wide{max-width:var(--wide-w);margin:0 auto;padding:0 28px;}
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    position:sticky;top:0;z-index:50;
+    background:rgba(238,241,236,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--rule);
+  }
+  .topbar-inner{
+    max-width:var(--wide-w);margin:0 auto;padding:14px 28px;
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand-mark{font-family:'Fraunces',serif;font-weight:600;font-size:17px;}
+  .badge{
+    font-size:11.5px;color:var(--ink-soft);
+    border:1px solid var(--rule);border-radius:100px;
+    padding:3px 10px;background:var(--paper-raised);
+    white-space:nowrap;
+  }
+  nav.topnav{display:flex;gap:22px;}
+  nav.topnav a{
+    font-size:13.5px;color:var(--ink-soft);text-decoration:none;
+    border-bottom:1px solid transparent;padding-bottom:2px;
+  }
+  nav.topnav a:hover{color:var(--ink);border-bottom-color:var(--ink-soft);}
+
+  /* ---------- hero ---------- */
+  .hero{padding:64px 0 40px;}
+  .hero h1{font-size:clamp(32px,4.4vw,50px);line-height:1.08;max-width:14ch;}
+  .hero p.lede{
+    font-size:17px;color:var(--ink-soft);max-width:56ch;margin:18px 0 0;
+  }
+  .legend{display:flex;gap:22px;margin-top:26px;font-size:13.5px;}
+  .legend-item{display:flex;align-items:center;gap:8px;}
+  .swatch{width:11px;height:11px;border-radius:50%;display:inline-block;}
+  .swatch.lc{background:var(--lc);}
+  .swatch.lg{background:var(--lg);}
+
+  .hero-chart-panel{
+    margin-top:34px;background:var(--paper-raised);
+    border:1px solid var(--rule);border-radius:var(--radius);
+    padding:22px 26px 10px;
+  }
+  .hero-chart-head{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    margin-bottom:6px;flex-wrap:wrap;gap:10px;
+  }
+  .hero-chart-head h3{font-size:15px;color:var(--ink-soft);font-weight:500;font-family:'IBM Plex Sans',sans-serif;}
+  .hero-endcallouts{display:flex;gap:26px;font-size:13px;}
+  .endcallout b{font-family:'Fraunces',serif;font-size:19px;display:block;font-weight:600;}
+
+  /* ---------- exec summary strip ---------- */
+  .stats-strip{
+    border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+    padding:26px 0;margin-top:50px;
+  }
+  .stats-row{display:flex;flex-wrap:wrap;gap:44px;}
+  .stat b{font-family:'Fraunces',serif;font-size:26px;font-weight:600;display:block;}
+  .stat span{font-size:12.5px;color:var(--ink-soft);}
+
+  /* ---------- sections ---------- */
+  section{padding:56px 0;}
+  section.band{background:var(--paper-raised);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);}
+  .section-head{max-width:60ch;margin-bottom:30px;}
+  .section-head h2{font-size:27px;}
+  .section-head p{color:var(--ink-soft);font-size:15px;margin-top:10px;}
+
+  /* ---------- tabs / controls ---------- */
+  .tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px;}
+  .tab{
+    font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--ink-soft);
+    background:transparent;border:1px solid var(--rule);border-radius:100px;
+    padding:6px 14px;cursor:pointer;transition:background .15s,color .15s,border-color .15s;
+  }
+  .tab:hover{border-color:var(--ink-soft);color:var(--ink);}
+  .tab.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+
+  .chart-card{
+    background:var(--paper-raised);border:1px solid var(--rule);
+    border-radius:var(--radius);padding:22px 24px;
+  }
+  section.band .chart-card{background:var(--paper);}
+
+  svg text{font-family:'IBM Plex Sans',sans-serif;fill:var(--ink-soft);}
+  .axis-line{stroke:var(--rule);stroke-width:1;}
+  .grid-line{stroke:var(--rule-soft);stroke-width:1;}
+  .line-lc{stroke:var(--lc);stroke-width:2.4;fill:none;}
+  .line-lg{stroke:var(--lg);stroke-width:2.4;fill:none;}
+  .dot-lc{fill:var(--lc);}
+  .dot-lg{fill:var(--lg);}
+  .value-label{font-size:11px;}
+
+  /* ---------- level slider / radar ---------- */
+  .level-control{display:flex;align-items:center;gap:16px;margin-bottom:26px;flex-wrap:wrap;}
+  .level-control label{font-size:13px;color:var(--ink-soft);}
+  input[type=range]{
+    -webkit-appearance:none;width:220px;height:2px;background:var(--rule);
+    border-radius:2px;outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+    background:var(--ink);cursor:pointer;border:2px solid var(--paper);
+  }
+  .level-readout{font-family:'Fraunces',serif;font-size:18px;font-weight:600;min-width:70px;}
+
+  .radar-wrap{display:grid;grid-template-columns:1.15fr 0.85fr;gap:30px;align-items:center;}
+  @media (max-width:760px){.radar-wrap{grid-template-columns:1fr;}}
+  .judge-list{display:flex;flex-direction:column;gap:0;}
+  .judge-row{
+    display:grid;grid-template-columns:1fr auto auto;gap:14px;align-items:center;
+    padding:9px 0;border-bottom:1px solid var(--rule-soft);font-size:13px;
+  }
+  .judge-row:last-child{border-bottom:none;}
+  .judge-row .dname{color:var(--ink);}
+  .judge-row .dval{font-family:'Fraunces',serif;font-weight:600;font-size:14.5px;width:44px;text-align:right;}
+  .judge-row .dval.lc{color:var(--lc);}
+  .judge-row .dval.lg{color:var(--lg);}
+
+  /* ---------- level table ---------- */
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--rule-soft);}
+  th:first-child,td:first-child{text-align:left;}
+  thead th{
+    font-weight:500;color:var(--ink-soft);font-size:12px;
+    border-bottom:1px solid var(--rule);
+  }
+  tbody tr:hover{background:rgba(0,0,0,0.02);}
+  .fw-tag{
+    display:inline-flex;align-items:center;gap:6px;font-size:12.5px;
+  }
+  .fw-tag .swatch{width:8px;height:8px;}
+  td.delta-good{color:var(--good);}
+  td.delta-bad{color:var(--bad);}
+
+  /* ---------- interpretation ---------- */
+  .interp{max-width:68ch;}
+  .interp h3{font-size:16px;margin-top:34px;margin-bottom:8px;}
+  .interp h3:first-child{margin-top:0;}
+  .interp p{font-size:15px;color:var(--ink-soft);margin:0 0 4px;}
+  .interp .num{
+    display:inline-block;width:22px;color:var(--ink);font-family:'Fraunces',serif;font-weight:600;
+  }
+
+  footer{padding:40px 0 60px;border-top:1px solid var(--rule);}
+  footer p{font-size:12.5px;color:var(--ink-soft);max-width:60ch;}
+
+  @media (max-width:640px){
+    .topnav{display:none;}
+    .hero{padding:44px 0 30px;}
+    .radar-wrap{gap:22px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-mark">LangChain / LangGraph — Agent Benchmark</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <nav class="topnav">
+        <a href="#comparison">Comparison</a>
+        <a href="#judge">Judge</a>
+        <a href="#levels">Levels</a>
+        <a href="#progression">Progression</a>
+        <a href="#interpretation">Interpretation</a>
+      </nav>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>Where agent orchestration earns its overhead</h1>
+    <p class="lede">180 executions per level, 8 levels of rising task complexity, one LLM judge scoring every run on eight dimensions. This page tracks how a simple LangChain loop and an explicit LangGraph state machine diverge as the work gets harder.</p>
+
+    <div class="legend">
+      <div class="legend-item"><span class="swatch lc"></span>LangChain</div>
+      <div class="legend-item"><span class="swatch lg"></span>LangGraph</div>
+    </div>
+
+    <div class="hero-chart-panel">
+      <div class="hero-chart-head">
+        <h3>Execution success rate, Level 1 → 8</h3>
+        <div class="hero-endcallouts">
+          <div class="endcallout" style="color:var(--lc)">Level 8<b id="hero-end-lc">–</b></div>
+          <div class="endcallout" style="color:var(--lg)">Level 8<b id="hero-end-lg">–</b></div>
+        </div>
+      </div>
+      <svg id="hero-chart" viewBox="0 0 820 260" width="100%" height="260"></svg>
+    </div>
+  </section>
+
+  <div class="stats-strip">
+    <div class="stats-row" id="exec-summary"></div>
+  </div>
+</div>
+
+<section id="comparison">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Framework comparison</h2>
+      <p>Every measured metric, one at a time, across all eight complexity levels.</p>
+    </div>
+    <div class="tabs" id="metric-tabs"></div>
+    <div class="chart-card">
+      <svg id="metric-chart" viewBox="0 0 820 300" width="100%" height="300"></svg>
+    </div>
+  </div>
+</section>
+
+<section id="judge" class="band">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>LLM judge evaluation</h2>
+      <p>Eight independent scoring dimensions, kept separate by design — no blended composite score. Drag the level to see how the profile shifts.</p>
+    </div>
+    <div class="level-control">
+      <label for="judge-slider">Level</label>
+      <input type="range" id="judge-slider" min="1" max="8" value="1" step="1">
+      <span class="level-readout" id="judge-level-readout">1</span>
+    </div>
+    <div class="chart-card">
+      <div class="radar-wrap">
+        <svg id="radar-chart" viewBox="0 0 420 420" width="100%" height="420"></svg>
+        <div class="judge-list" id="judge-list"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="levels">
+  <div class="wide">
+    <div class="section-head">
+      <h2>Level-by-level results</h2>
+      <p>Full metric set per level. Delta column shows LangGraph minus LangChain (green favors LangGraph, rust favors LangChain) for the currently selected metric group.</p>
+    </div>
+    <div class="tabs" id="level-tabs"></div>
+    <div class="chart-card">
+      <table id="level-table"></table>
+    </div>
+  </div>
+</section>
+
+<section id="progression" class="band">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Complexity progression</h2>
+      <p>The gap between frameworks — LangGraph score minus LangChain score — for each judge dimension, as complexity rises from Level 1 to Level 8. Above the line favors LangGraph.</p>
+    </div>
+    <div class="chart-card">
+      <svg id="gap-chart" viewBox="0 0 820 280" width="100%" height="280"></svg>
+    </div>
+  </div>
+</section>
+
+<section id="interpretation">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Research interpretation</h2>
+      <p>Read only against the measured results above — no significance is claimed beyond what a single point estimate per cell can support.</p>
+    </div>
+    <div class="interp">
+      <h3><span class="num">1</span>Level 1</h3>
+      <p>Near-identical performance (0.985 vs 0.980 success). LangChain runs marginally faster and cheaper — there's no graph overhead yet for LangGraph to earn back.</p>
+      <h3><span class="num">2</span>Level 2</h3>
+      <p>Still close. Ten tools enter the picture and tool selection becomes a real decision, nudging LangGraph's tool-selection-correctness up slightly, but the gap remains within noise.</p>
+      <h3><span class="num">3</span>Where the architectural gap opens</h3>
+      <p>Roughly Level 4–5, once tasks require dependent multi-step actions. A loop-based agent is most likely to lose track of prior state there, while an explicit graph tracks it structurally.</p>
+      <h3><span class="num">4</span>Metrics most likely to diverge</h3>
+      <p>Trajectory quality, execution success rate, and tool failures at high levels — the core hypothesis is that orchestration structure pays off once trajectories get long, not when tasks are simple.</p>
+      <h3><span class="num">5</span>Metrics likely to stay similar</h3>
+      <p>Mean LLM calls and instruction-following — both are mostly a property of the underlying model, not the orchestration layer around it.</p>
+      <h3><span class="num">6</span>Where LangChain might win</h3>
+      <p>Latency and raw token counts at low-to-mid complexity, since it isn't paying for state-passing overhead it doesn't yet need.</p>
+      <h3><span class="num">7</span>Overall trend, Level 1 → 8</h3>
+      <p>Both frameworks degrade as complexity rises — this is not "LangGraph wins everything." LangChain degrades faster from a more efficient starting point; LangGraph degrades more gracefully at a persistent overhead cost.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Methodology: 30 tasks × 3 runs × 2 frameworks × 8 levels = 1,440 executions. Judge scores on an independent 0–1 scale across eight dimensions. All figures on this page are currently <strong>predicted values</strong> generated from architectural reasoning about LangChain's agent-executor loop versus LangGraph's explicit state graph — replace <code>DATA</code> in the page source with real experimental output to convert this into a results report.</p>
+  </div>
+</footer>
+
+<script>
+/* ============================================================
+   DATA — replace this object with real experimental output.
+   Structure is unchanged: levels["1"] .. levels["8"], each with
+   frameworks.langchain / frameworks.langgraph, each with the
+   execution metrics and a nested `judge` object.
+   ============================================================ */
+const DATA = {
+  "label": "PREDICTED / EXPECTED RESULTS -- NOT EXPERIMENTAL MEASUREMENTS",
+  "description": "Hypothesis-driven predictions for LangChain vs LangGraph agent benchmark, generated from architectural reasoning (see generate_predictions.py for the explicit assumptions/formulas used). These are NOT measured results.",
+  "experiment_design": {
+    "levels": 8,
+    "tasks_per_level": 30,
+    "runs_per_task": 3,
+    "frameworks": 2,
+    "executions_per_level": 180,
+    "total_executions": 1440
+  },
+  "levels": {
+    "1": {
+      "level": 1,
+      "total_executions": 180,
+      "note": "PREDICTED / EXPECTED RESULTS - NOT EXPERIMENTAL MEASUREMENTS",
+      "frameworks": {
+        "langchain": {
+          "executions": 90,
+          "execution_success_rate": 0.985,
+          "mean_latency_ms": 600.0,
+          "mean_input_tokens": 336.0,
+          "mean_output_tokens": 116.4,
+          "mean_total_tokens": 452.4,
+          "mean_llm_calls": 1.2,
+          "mean_tool_calls": 0.95,
+          "mean_tool_failures": 0.03,
+          "judge": {
+            "task_success": 0.97,
+            "answer_quality": 0.95,
+            "goal_completion": 0.96,
+            "trajectory_quality": 0.93,
+            "tool_selection_correctness": 0.95,
+            "tool_argument_correctness": 0.94,
+            "instruction_following": 0.96,
+            "constraint_satisfaction": 0.94
+          }
+        },
+        "langgraph": {
+          "executions": 90,
+          "execution_success_rate": 0.98,
+          "mean_latency_ms": 700.0,
+          "mean_input_tokens": 371.0,
+          "mean_output_tokens": 126.0,
+          "mean_total_tokens": 497.0,
+          "mean_llm_calls": 1.4,
+          "mean_tool_calls": 0.87,
+          "mean_tool_failures": 0.03,
+          "judge": {
+            "task_success": 0.975,
+            "answer_quality": 0.955,
+            "goal_completion": 0.965,
+            "trajectory_quality": 0.945,
+            "tool_selection_correctness": 0.955,
+            "tool_argument_correctness": 0.945,
+            "instruction_following": 0.965,
+            "constraint_satisfaction": 0.95
+          }
+        }
+      }
+    },
+    "2": {
+      "level": 2,
+      "total_executions": 180,
+      "note": "PREDICTED / EXPECTED RESULTS - NOT EXPERIMENTAL MEASUREMENTS",
+      "frameworks": {
+        "langchain": {
+          "executions": 90,
+          "execution_success_rate": 0.979,
+          "mean_latency_ms": 715.6,
+          "mean_input_tokens": 374.4,
+          "mean_output_tokens": 127.6,
+          "mean_total_tokens": 502.0,
+          "mean_llm_calls": 1.33,
+          "mean_tool_calls": 1.1,
+          "mean_tool_failures": 0.035,
+          "judge": {
+            "task_success": 0.964,
+            "answer_quality": 0.945,
+            "goal_completion": 0.954,
+            "trajectory_quality": 0.919,
+            "tool_selection_correctness": 0.943,
+            "tool_argument_correctness": 0.933,
+            "instruction_following": 0.953,
+            "constraint_satisfaction": 0.934
+          }
+        },
+        "langgraph": {
+          "executions": 90,
+          "execution_success_rate": 0.976,
+          "mean_latency_ms": 822.2,
+          "mean_input_tokens": 413.4,
+          "mean_output_tokens": 138.1,
+          "mean_total_tokens": 551.5,
+          "mean_llm_calls": 1.52,
+          "mean_tool_calls": 1.02,
+          "mean_tool_failures": 0.033,
+          "judge": {
+            "task_success": 0.971,
+            "answer_quality": 0.951,
+            "goal_completion": 0.962,
+            "trajectory_quality": 0.939,
+            "tool_selection_correctness": 0.95,
+            "tool_argument_correctness": 0.94,
+            "instruction_following": 0.96,
+            "constraint_satisfaction": 0.946
+          }
+        }
+      }
+    },
+    "3": {
+      "level": 3,
+      "total_executions": 180,
+      "note": "PREDICTED / EXPECTED RESULTS - NOT EXPERIMENTAL MEASUREMENTS",
+      "frameworks": {
+        "langchain": {
+          "executions": 90,
+          "execution_success_rate": 0.96,
+          "mean_latency_ms": 950.3,
+          "mean_input_tokens": 452.4,
+          "mean_output_tokens": 150.4,
+          "mean_total_tokens": 602.8,
+          "mean_llm_calls": 1.6,
+          "mean_tool_calls": 1.43,
+          "mean_tool_failures": 0.057,
+          "judge": {
+            "task_success": 0.946,
+            "answer_quality": 0.93,
+            "goal_completion": 0.933,
+            "trajectory_quality": 0.89,
+            "tool_selection_correctness": 0.925,
+            "tool_argument_correctness": 0.913,
+            "instruction_following": 0.938,
+            "constraint_satisfaction": 0.916
+          }
+        },
+        "langgraph": {
+          "executions": 90,
+          "execution_success_rate": 0.964,
+          "mean_latency_ms": 1070.5,
+          "mean_input_tokens": 499.5,
+          "mean_output_tokens": 162.8,
+          "mean_total_tokens": 662.3,
+          "mean_llm_calls": 1.75,
+          "mean_tool_calls": 1.32,
+          "mean_tool_failures": 0.047,
+          "judge": {
+            "task_success": 0.959,
+            "answer_quality": 0.94,
+            "goal_completion": 0.95,
+            "trajectory_quality": 0.925,
+            "tool_selection_correctness": 0.938,
+            "tool_argument_correctness": 0.927,
+            "instruction_following": 0.948,
+            "constraint_satisfaction": 0.934
+          }
+        }
+      }
+    },
+    "4": {
+      "level": 4,
+      "total_executions": 180,
+      "note": "PREDICTED / EXPECTED RESULTS - NOT EXPERIMENTAL MEASUREMENTS",
+      "frameworks": {
+        "langchain": {
+          "executions": 90,
+          "execution_success_rate": 0.927,
+          "mean_latency_ms": 1270.2,
+          "mean_input_tokens": 558.7,
+          "mean_output_tokens": 181.4,
+          "mean_total_tokens": 740.1,
+          "mean_llm_calls": 1.97,
+          "mean_tool_calls": 1.87,
+          "mean_tool_failures": 0.102,
+          "judge": {
+            "task_success": 0.913,
+            "answer_quality": 0.907,
+            "goal_completion": 0.898,
+            "trajectory_quality": 0.846,
+            "tool_selection_correctness": 0.895,
+            "tool_argument_correctness": 0.881,
+            "instruction_following": 0.915,
+            "constraint_satisfaction": 0.887
+          }
+        },
+        "langgraph": {
+          "executions": 90,
+          "execution_success_rate": 0.942,
+          "mean_latency_ms": 1408.9,
+          "mean_input_tokens": 616.9,
+          "mean_output_tokens": 196.4,
+          "mean_total_tokens": 813.3,
+          "mean_llm_calls": 2.07,
+          "mean_tool_calls": 1.72,
+          "mean_tool_failures": 0.074,
+          "judge": {
+            "task_success": 0.939,
+            "answer_quality": 0.922,
+            "goal_completion": 0.931,
+            "trajectory_quality": 0.903,
+            "tool_selection_correctness": 0.918,
+            "tool_argument_correctness": 0.906,
+            "instruction_following": 0.931,
+            "constraint_satisfaction": 0.915
+          }
+        }
+      }
+    },
+    "5": {
+      "level": 5,
+      "total_executions": 180,
+      "note": "PREDICTED / EXPECTED RESULTS - NOT EXPERIMENTAL MEASUREMENTS",
+      "frameworks": {
+        "langchain": {
+          "executions": 90,
+          "execution_success_rate": 0.879,
+          "mean_latency_ms": 1662.0,
+          "mean_input_tokens": 688.9,
+          "mean_output_tokens": 219.4,
+          "mean_total_tokens": 908.3,
+          "mean_llm_calls": 2.43,
+          "mean_tool_calls": 2.4,
+          "mean_tool_failures": 0.174,
+          "judge": {
+            "task_success": 0.867,
+            "answer_quality": 0.875,
+            "goal_completion": 0.848,
+            "trajectory_quality": 0.787,
+            "tool_selection_correctness": 0.854,
+            "tool_argument_correctness": 0.838,
+            "instruction_following": 0.885,
+            "constraint_satisfaction": 0.848
+          }
+        },
+        "langgraph": {
+          "executions": 90,
+          "execution_success_rate": 0.911,
+          "mean_latency_ms": 1823.2,
+          "mean_input_tokens": 760.7,
+          "mean_output_tokens": 237.5,
+          "mean_total_tokens": 998.2,
+          "mean_llm_calls": 2.46,
+          "mean_tool_calls": 2.22,
+          "mean_tool_failures": 0.119,
+          "judge": {
+            "task_success": 0.909,
+            "answer_quality": 0.897,
+            "goal_completion": 0.903,
+            "trajectory_quality": 0.874,
+            "tool_selection_correctness": 0.89,
+            "tool_argument_correctness": 0.877,
+            "instruction_following": 0.909,
+            "constraint_satisfaction": 0.889
+          }
+        }
+      }
+    },
+    "6": {
+      "level": 6,
+      "total_executions": 180,
+      "note": "PREDICTED / EXPECTED RESULTS - NOT EXPERIMENTAL MEASUREMENTS",
+      "frameworks": {
+        "langchain": {
+          "executions": 90,
+          "execution_success_rate": 0.816,
+          "mean_latency_ms": 2117.6,
+          "mean_input_tokens": 840.3,
+          "mean_output_tokens": 263.6,
+          "mean_total_tokens": 1103.9,
+          "mean_llm_calls": 2.95,
+          "mean_tool_calls": 3.03,
+          "mean_tool_failures": 0.275,
+          "judge": {
+            "task_success": 0.806,
+            "answer_quality": 0.835,
+            "goal_completion": 0.781,
+            "trajectory_quality": 0.715,
+            "tool_selection_correctness": 0.803,
+            "tool_argument_correctness": 0.783,
+            "instruction_following": 0.849,
+            "constraint_satisfaction": 0.798
+          }
+        },
+        "langgraph": {
+          "executions": 90,
+          "execution_success_rate": 0.871,
+          "mean_latency_ms": 2305.2,
+          "mean_input_tokens": 927.9,
+          "mean_output_tokens": 285.4,
+          "mean_total_tokens": 1213.2,
+          "mean_llm_calls": 2.92,
+          "mean_tool_calls": 2.8,
+          "mean_tool_failures": 0.182,
+          "judge": {
+            "task_success": 0.871,
+            "answer_quality": 0.866,
+            "goal_completion": 0.866,
+            "trajectory_quality": 0.837,
+            "tool_selection_correctness": 0.855,
+            "tool_argument_correctness": 0.84,
+            "instruction_following": 0.882,
+            "constraint_satisfaction": 0.856
+          }
+        }
+      }
+    },
+    "7": {
+      "level": 7,
+      "total_executions": 180,
+      "note": "PREDICTED / EXPECTED RESULTS - NOT EXPERIMENTAL MEASUREMENTS",
+      "frameworks": {
+        "langchain": {
+          "executions": 90,
+          "execution_success_rate": 0.738,
+          "mean_latency_ms": 2631.7,
+          "mean_input_tokens": 1011.1,
+          "mean_output_tokens": 313.5,
+          "mean_total_tokens": 1324.6,
+          "mean_llm_calls": 3.54,
+          "mean_tool_calls": 3.73,
+          "mean_tool_failures": 0.41,
+          "judge": {
+            "task_success": 0.731,
+            "answer_quality": 0.786,
+            "goal_completion": 0.699,
+            "trajectory_quality": 0.629,
+            "tool_selection_correctness": 0.742,
+            "tool_argument_correctness": 0.717,
+            "instruction_following": 0.808,
+            "constraint_satisfaction": 0.739
+          }
+        },
+        "langgraph": {
+          "executions": 90,
+          "execution_success_rate": 0.82,
+          "mean_latency_ms": 2848.9,
+          "mean_input_tokens": 1116.5,
+          "mean_output_tokens": 339.3,
+          "mean_total_tokens": 1455.8,
+          "mean_llm_calls": 3.43,
+          "mean_tool_calls": 3.45,
+          "mean_tool_failures": 0.265,
+          "judge": {
+            "task_success": 0.823,
+            "answer_quality": 0.829,
+            "goal_completion": 0.82,
+            "trajectory_quality": 0.794,
+            "tool_selection_correctness": 0.814,
+            "tool_argument_correctness": 0.796,
+            "instruction_following": 0.851,
+            "constraint_satisfaction": 0.816
+          }
+        }
+      }
+    },
+    "8": {
+      "level": 8,
+      "total_executions": 180,
+      "note": "PREDICTED / EXPECTED RESULTS - NOT EXPERIMENTAL MEASUREMENTS",
+      "frameworks": {
+        "langchain": {
+          "executions": 90,
+          "execution_success_rate": 0.645,
+          "mean_latency_ms": 3200.0,
+          "mean_input_tokens": 1200.0,
+          "mean_output_tokens": 368.6,
+          "mean_total_tokens": 1568.6,
+          "mean_llm_calls": 4.2,
+          "mean_tool_calls": 4.51,
+          "mean_tool_failures": 0.58,
+          "judge": {
+            "task_success": 0.64,
+            "answer_quality": 0.73,
+            "goal_completion": 0.6,
+            "trajectory_quality": 0.53,
+            "tool_selection_correctness": 0.67,
+            "tool_argument_correctness": 0.64,
+            "instruction_following": 0.76,
+            "constraint_satisfaction": 0.67
+          }
+        },
+        "langgraph": {
+          "executions": 90,
+          "execution_success_rate": 0.76,
+          "mean_latency_ms": 3450.0,
+          "mean_input_tokens": 1325.0,
+          "mean_output_tokens": 399.0,
+          "mean_total_tokens": 1724.0,
+          "mean_llm_calls": 4.0,
+          "mean_tool_calls": 4.17,
+          "mean_tool_failures": 0.37,
+          "judge": {
+            "task_success": 0.765,
+            "answer_quality": 0.785,
+            "goal_completion": 0.765,
+            "trajectory_quality": 0.745,
+            "tool_selection_correctness": 0.765,
+            "tool_argument_correctness": 0.745,
+            "instruction_following": 0.815,
+            "constraint_satisfaction": 0.77
+          }
+        }
+      }
+    }
+  }
+};
+
+const METRICS = [
+  {key:"execution_success_rate", label:"Success rate", fmt:v=>(v*100).toFixed(1)+"%", domain:[0,1]},
+  {key:"mean_latency_ms", label:"Latency", fmt:v=>Math.round(v)+" ms", domain:null},
+  {key:"mean_total_tokens", label:"Total tokens", fmt:v=>Math.round(v).toLocaleString(), domain:null},
+  {key:"mean_llm_calls", label:"LLM calls", fmt:v=>v.toFixed(2), domain:null},
+  {key:"mean_tool_calls", label:"Tool calls", fmt:v=>v.toFixed(2), domain:null},
+  {key:"mean_tool_failures", label:"Tool failures", fmt:v=>v.toFixed(2), domain:null},
+];
+
+const JUDGE_DIMS = [
+  {key:"task_success", label:"Task success"},
+  {key:"answer_quality", label:"Answer quality"},
+  {key:"goal_completion", label:"Goal completion"},
+  {key:"trajectory_quality", label:"Trajectory quality"},
+  {key:"tool_selection_correctness", label:"Tool selection"},
+  {key:"tool_argument_correctness", label:"Tool arguments"},
+  {key:"instruction_following", label:"Instruction following"},
+  {key:"constraint_satisfaction", label:"Constraint satisfaction"},
+];
+
+const levels = Object.keys(DATA.levels).map(Number).sort((a,b)=>a-b);
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs){
+  const e = document.createElementNS(NS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+/* ---------- generic line-chart renderer ---------- */
+function renderLineChart(svgId, getVal, fmt, opts){
+  opts = opts || {};
+  const svg = document.getElementById(svgId);
+  svg.innerHTML = "";
+  const vb = svg.viewBox.baseVal;
+  const W = vb.width, H = vb.height;
+  const padL = opts.padL || 46, padR = 34, padT = 18, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+
+  const lcVals = levels.map(l => getVal(DATA.levels[l].frameworks.langchain));
+  const lgVals = levels.map(l => getVal(DATA.levels[l].frameworks.langgraph));
+  const all = lcVals.concat(lgVals);
+  let min = opts.domain ? opts.domain[0] : Math.min(...all);
+  let max = opts.domain ? opts.domain[1] : Math.max(...all);
+  if(!opts.domain){
+    const pad = (max-min)*0.15 || 1;
+    min = Math.max(0, min-pad); max = max+pad;
+  }
+
+  const x = i => padL + (plotW * i/(levels.length-1));
+  const y = v => padT + plotH - ((v-min)/(max-min))*plotH;
+
+  // gridlines
+  const gridN = 4;
+  for(let i=0;i<=gridN;i++){
+    const gy = padT + plotH*i/gridN;
+    svg.appendChild(el("line",{x1:padL,y1:gy,x2:padL+plotW,y2:gy,class:"grid-line"}));
+    const val = max - (max-min)*i/gridN;
+    const t = el("text",{x:padL-10,y:gy+4,"text-anchor":"end","font-size":11});
+    t.textContent = fmt(val);
+    svg.appendChild(t);
+  }
+  // x axis labels
+  levels.forEach((l,i)=>{
+    const t = el("text",{x:x(i),y:H-8,"text-anchor":"middle","font-size":11});
+    t.textContent = "L"+l;
+    svg.appendChild(t);
+  });
+  svg.appendChild(el("line",{x1:padL,y1:padT+plotH,x2:padL+plotW,y2:padT+plotH,class:"axis-line"}));
+
+  function path(vals, cls){
+    let d = "";
+    vals.forEach((v,i)=>{ d += (i===0?"M":"L") + x(i) + " " + y(v) + " "; });
+    svg.appendChild(el("path",{d, class:cls}));
+    vals.forEach((v,i)=>{
+      svg.appendChild(el("circle",{cx:x(i), cy:y(v), r:3.2, class:cls.replace("line-","dot-")}));
+    });
+  }
+  path(lcVals, "line-lc");
+  path(lgVals, "line-lg");
+
+  // end labels
+  const lastI = levels.length-1;
+  const endLC = el("text",{x:x(lastI)+8, y:y(lcVals[lastI])-6, "font-size":11.5, fill:"var(--lc)", "font-weight":"600"});
+  endLC.textContent = fmt(lcVals[lastI]);
+  svg.appendChild(endLC);
+  const endLG = el("text",{x:x(lastI)+8, y:y(lgVals[lastI])+14, "font-size":11.5, fill:"var(--lg)", "font-weight":"600"});
+  endLG.textContent = fmt(lgVals[lastI]);
+  svg.appendChild(endLG);
+
+  return {lcVals, lgVals};
+}
+
+/* ---------- hero chart ---------- */
+function renderHero(){
+  const m = METRICS[0];
+  const {lcVals, lgVals} = renderLineChart("hero-chart", fw=>fw.execution_success_rate, v=>(v*100).toFixed(0)+"%", {domain:[0,1]});
+  document.getElementById("hero-end-lc").textContent = (lcVals[lcVals.length-1]*100).toFixed(1)+"%";
+  document.getElementById("hero-end-lg").textContent = (lgVals[lgVals.length-1]*100).toFixed(1)+"%";
+}
+
+/* ---------- exec summary ---------- */
+function renderSummary(){
+  const d = DATA.experiment_design;
+  const items = [
+    [d.levels, "levels"],
+    [d.total_executions.toLocaleString(), "total executions"],
+    [d.tasks_per_level, "tasks per level"],
+    [d.frameworks, "frameworks compared"],
+    [d.runs_per_task, "runs per task"],
+  ];
+  const row = document.getElementById("exec-summary");
+  items.forEach(([val,label])=>{
+    const d = document.createElement("div");
+    d.className = "stat";
+    d.innerHTML = `<b>${val}</b><span>${label}</span>`;
+    row.appendChild(d);
+  });
+}
+
+/* ---------- metric tabs + chart ---------- */
+let activeMetric = METRICS[0];
+function renderMetricTabs(){
+  const wrap = document.getElementById("metric-tabs");
+  wrap.innerHTML = "";  
+  METRICS.forEach(m=>{
+    const b = document.createElement("button");
+    b.className = "tab" + (m===activeMetric?" active":"");
+    b.textContent = m.label;
+    b.onclick = ()=>{ activeMetric = m; renderMetricTabs(); renderMetricChart(); };
+    wrap.appendChild(b);
+  });
+}
+function renderMetricChart(){
+  document.querySelectorAll("#metric-tabs .tab").forEach((b,i)=>{
+    b.classList.toggle("active", METRICS[i]===activeMetric);
+  });
+  renderLineChart("metric-chart", fw=>fw[activeMetric.key], activeMetric.fmt, {domain:activeMetric.domain});
+}
+
+/* ---------- radar / judge ---------- */
+function renderRadar(level){
+  const svg = document.getElementById("radar-chart");
+  svg.innerHTML = "";
+  const cx=210, cy=200, R=150;
+  const n = JUDGE_DIMS.length;
+  const angle = i => -Math.PI/2 + i*(2*Math.PI/n);
+
+  // rings
+  [0.25,0.5,0.75,1].forEach(f=>{
+    let d="";
+    for(let i=0;i<=n;i++){
+      const a = angle(i%n);
+      const r = R*f;
+      d += (i===0?"M":"L") + (cx+r*Math.cos(a)) + " " + (cy+r*Math.sin(a)) + " ";
+    }
+    svg.appendChild(el("path",{d, fill:"none", class:"grid-line"}));
+  });
+  // spokes + labels
+  JUDGE_DIMS.forEach((dim,i)=>{
+    const a = angle(i);
+    const lx = cx + (R+34)*Math.cos(a);
+    const ly = cy + (R+34)*Math.sin(a);
+    svg.appendChild(el("line",{x1:cx,y1:cy,x2:cx+R*Math.cos(a),y2:cy+R*Math.sin(a), class:"grid-line"}));
+    const t = el("text",{x:lx, y:ly, "text-anchor": Math.cos(a)>0.3?"start":(Math.cos(a)<-0.3?"end":"middle"), "font-size":10.5});
+    const words = dim.label.split(" ");
+    t.textContent = words.join(" ");
+    svg.appendChild(t);
+  });
+
+  function poly(getVal, cls, fillCls){
+    let d="";
+    JUDGE_DIMS.forEach((dim,i)=>{
+      const a = angle(i);
+      const r = R*getVal(dim);
+      d += (i===0?"M":"L") + (cx+r*Math.cos(a)) + " " + (cy+r*Math.sin(a)) + " ";
+    });
+    d += "Z";
+    const path = el("path",{d, class:cls});
+    path.style.fill = fillCls;
+    path.style.fillOpacity = 0.12;
+    svg.appendChild(path);
+    JUDGE_DIMS.forEach((dim,i)=>{
+      const a = angle(i);
+      const r = R*getVal(dim);
+      svg.appendChild(el("circle",{cx:cx+r*Math.cos(a), cy:cy+r*Math.sin(a), r:3, class:cls.replace("line-","dot-")}));
+    });
+  }
+  const lc = DATA.levels[level].frameworks.langchain.judge;
+  const lg = DATA.levels[level].frameworks.langgraph.judge;
+  poly(dim=>lc[dim.key], "line-lc", "var(--lc)");
+  poly(dim=>lg[dim.key], "line-lg", "var(--lg)");
+}
+function renderJudgeList(level){
+  const wrap = document.getElementById("judge-list");
+  wrap.innerHTML = "";
+  const lc = DATA.levels[level].frameworks.langchain.judge;
+  const lg = DATA.levels[level].frameworks.langgraph.judge;
+  JUDGE_DIMS.forEach(dim=>{
+    const row = document.createElement("div");
+    row.className = "judge-row";
+    row.innerHTML = `<span class="dname">${dim.label}</span>
+      <span class="dval lc">${lc[dim.key].toFixed(2)}</span>
+      <span class="dval lg">${lg[dim.key].toFixed(2)}</span>`;
+    wrap.appendChild(row);
+  });
+}
+function renderJudgeAll(){
+  const level = document.getElementById("judge-slider").value;
+  document.getElementById("judge-level-readout").textContent = "Level " + level;
+  renderRadar(level);
+  renderJudgeList(level);
+}
+
+/* ---------- level table ---------- */
+let activeLevel = 1;
+function renderLevelTabs(){
+  const wrap = document.getElementById("level-tabs");
+  wrap.innerHTML = "";
+  levels.forEach(l=>{
+    const b = document.createElement("button");
+    b.className = "tab" + (l===activeLevel?" active":"");
+    b.textContent = "Level " + l;
+    b.onclick = ()=>{ activeLevel = l; renderLevelTabs(); renderLevelTable(); };
+    wrap.appendChild(b);
+  });
+}
+function renderLevelTable(){
+  const lvl = DATA.levels[activeLevel];
+  const lc = lvl.frameworks.langchain, lg = lvl.frameworks.langgraph;
+  const rows = METRICS.map(m=>{
+    const a = m.key==="execution_success_rate" ? lc[m.key] : lc[m.key];
+    const b = lg[m.key];
+    const delta = b - a;
+    const favorsLG = (m.key.includes("failure") || m.key.includes("latency") || m.key.includes("token") || m.key.includes("calls")) ? delta < 0 : delta > 0;
+    return `<tr>
+      <td>${m.label}</td>
+      <td>${m.fmt(lc[m.key])}</td>
+      <td>${m.fmt(lg[m.key])}</td>
+      <td class="${favorsLG?'delta-good':'delta-bad'}">${delta>=0?"+":""}${m.key==='execution_success_rate'?(delta*100).toFixed(1)+'pp':delta.toFixed(2)}</td>
+    </tr>`;
+  }).join("");
+  const table = document.getElementById("level-table");
+  table.innerHTML = `
+    <thead><tr>
+      <th>Metric</th>
+      <th><span class="fw-tag"><span class="swatch lc"></span>LangChain</span></th>
+      <th><span class="fw-tag"><span class="swatch lg"></span>LangGraph</span></th>
+      <th>Δ (LG − LC)</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>`;
+}
+
+/* ---------- gap chart (complexity progression) ---------- */
+function renderGapChart(){
+  const svg = document.getElementById("gap-chart");
+  svg.innerHTML = "";
+  const vb = svg.viewBox.baseVal;
+  const W = vb.width, H = vb.height;
+  const padL=46, padR=140, padT=20, padB=30;
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+
+  const series = JUDGE_DIMS.map(dim=>{
+    return {dim, vals: levels.map(l=>{
+      const lc = DATA.levels[l].frameworks.langchain.judge[dim.key];
+      const lg = DATA.levels[l].frameworks.langgraph.judge[dim.key];
+      return lg-lc;
+    })};
+  });
+  const allVals = series.flatMap(s=>s.vals);
+  const maxAbs = Math.max(...allVals.map(Math.abs)) * 1.15;
+  const x = i => padL + plotW*i/(levels.length-1);
+  const y = v => padT + plotH/2 - (v/maxAbs)*(plotH/2);
+
+  svg.appendChild(el("line",{x1:padL,y1:y(0),x2:padL+plotW,y2:y(0),class:"axis-line"}));
+  levels.forEach((l,i)=>{
+    const t = el("text",{x:x(i),y:H-8,"text-anchor":"middle","font-size":11});
+    t.textContent = "L"+l;
+    svg.appendChild(t);
+  });
+
+  const palette = ["#1F5C6B","#3E7D6C","#6B8E4E","#B8862B","#C4832B","#A8622F","#8A5A8C","#4B7A9E"];
+  series.forEach((s,idx)=>{
+    let d="";
+    s.vals.forEach((v,i)=>{ d += (i===0?"M":"L") + x(i) + " " + y(v) + " "; });
+    const path = el("path",{d, fill:"none", stroke:palette[idx%palette.length], "stroke-width":1.8, opacity:0.85});
+    svg.appendChild(path);
+    const lastV = s.vals[s.vals.length-1];
+    const t = el("text",{x:x(levels.length-1)+8, y:y(lastV)+3, "font-size":10.5, fill:palette[idx%palette.length]});
+    t.textContent = s.dim.label;
+    svg.appendChild(t);
+  });
+}
+
+/* ---------- init ---------- */
+renderHero();
+renderSummary();
+renderMetricTabs();
+renderMetricChart();
+document.getElementById("judge-slider").addEventListener("input", renderJudgeAll);
+renderJudgeAll();
+renderLevelTabs();
+renderLevelTable();
+renderGapChart();
+window.addEventListener("resize", ()=>{ renderHero(); renderMetricChart(); renderGapChart(); renderRadar(document.getElementById("judge-slider").value); });
+</script>
+</body>
+</html>
